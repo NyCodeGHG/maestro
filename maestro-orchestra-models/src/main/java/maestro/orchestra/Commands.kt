@@ -343,12 +343,11 @@ data class AssertConditionCommand(
 }
 
 data class InputTextCommand(
-    val text: String,
-    val label: String? = null
+    val text: String
 ) : Command {
 
     override fun description(): String {
-         return label ?: "Input text $text"
+         return "Input text $text"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): InputTextCommand {
@@ -439,11 +438,10 @@ data class OpenLinkCommand(
 }
 
 data class PressKeyCommand(
-    val code: KeyCode,
-    val label: String? = null    
+    val code: KeyCode
 ) : Command {
     override fun description(): String {
-        return label ?: "Press ${code.description} key"
+        return "Press ${code.description} key"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): PressKeyCommand {
@@ -661,13 +659,12 @@ data class RepeatCommand(
 }
 
 data class DefineVariablesCommand(
-    val env: Map<String, String>,
-    val label: String? = null,
+    val env: Map<String, String>
         
 ) : Command {
 
     override fun description(): String {
-        return label ?: "Define variables"
+        return "Define variables"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): DefineVariablesCommand {
@@ -722,13 +719,11 @@ data class WaitForAnimationToEndCommand(
 }
 
 data class EvalScriptCommand(
-    val scriptString: String,
-    val label: String? = null
-    
+    val scriptString: String
 ) : Command {
 
     override fun description(): String {
-        return label ?:  "Run $scriptString"
+        return "Run $scriptString"
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
