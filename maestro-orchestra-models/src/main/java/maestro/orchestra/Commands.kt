@@ -573,6 +573,7 @@ data class RunFlowCommand(
     val condition: Condition? = null,
     val sourceDescription: String? = null,
     val config: MaestroConfig?,
+    val label: String? = null,
 ) : CompositeCommand {
 
     override fun subCommands(): List<MaestroCommand> {
@@ -584,6 +585,8 @@ data class RunFlowCommand(
     }
 
     override fun description(): String {
+        if (label != null) return label
+
         val runDescription = if (sourceDescription != null) {
             "Run $sourceDescription"
         } else {
