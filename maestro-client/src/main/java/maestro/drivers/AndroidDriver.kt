@@ -87,9 +87,15 @@ class AndroidDriver(
 
     private fun startInstrumentationSession() {
         val startTime = System.currentTimeMillis()
-        val instrumentationCommand = "am instrument -w -m -e debug false " +
-                "-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' " +
-                "dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n"
+        val apiLevel = getDeviceApiLevel()
+
+        val instrumentationCommand = buildString {
+            append("am instrument -w ")
+            if (apiLevel >= 26) append("-m ")
+            append("-e debug false ")
+                append("-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' ")
+                append("dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n")
+        }
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             instrumentationSession = dadb.openShell(instrumentationCommand)
@@ -404,7 +410,7 @@ class AndroidDriver(
             } catch (e: IOException) {
                 throw IOException(
                     "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
-                        "Try using a different Android emulator (eg. Pixel 5 / API 30)",
+                            "Try using a different Android emulator (eg. Pixel 5 / API 30)",
                     e,
                 )
             }
