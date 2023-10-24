@@ -104,3 +104,8 @@ plugins.withId("com.vanniktech.maven.publish") {
 test {
     useJUnitPlatform()
 }
+
+processResources {
+    def maestroAndroid = project(":maestro-android")
+    dependsOn(maestroAndroid.tasks.copyMaestroAndroid, maestroAndroid.tasks.copyMaestroServer)
+}
