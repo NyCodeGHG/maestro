@@ -33,7 +33,7 @@ jobs:
     needs: [build]
     strategy:
       matrix:
-        android_api_level: [29]
+        android_api_level: [21,22,23,24,25,26,27,28,29,30,31,32,33,34]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
