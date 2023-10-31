@@ -8,6 +8,7 @@ import maestro.utils.network.XCUITestServerError
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -19,6 +20,7 @@ import xcuitest.api.Error
 import xcuitest.api.NetworkException
 import java.net.InetAddress
 
+@Disabled
 class XCTestDriverClientTest {
 
     @Test

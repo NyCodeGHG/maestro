@@ -27,7 +27,6 @@ import dadb.Dadb
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import ios.IOSDeviceErrors
 import maestro.*
 import maestro.MaestroDriverStartupException.*
 import maestro.UiElement.Companion.toUiElementOrNull
@@ -45,9 +44,11 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.*
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.io.path.*
 import kotlin.io.use
 
 class AndroidDriver(
@@ -66,6 +67,8 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
+
+    private val useAdbBinary = System.getenv("USE_ADB_BINARY")?.toBoolean() ?: false
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -98,24 +101,25 @@ class AndroidDriver(
         }
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-            instrumentationSession = dadb.openShell(instrumentationCommand)
+            if (useAdbBinary) {
+                shell(instrumentationCommand)
+            } else {
+                instrumentationSession = dadb.openShell(instrumentationCommand)
 
-            if (instrumentationSession.successfullyStarted()) {
-                return
+                if (instrumentationSession.successfullyStarted()) {
+                    return
+                }
+
+                instrumentationSession?.close()
+                Thread.sleep(100)
             }
-
-            instrumentationSession?.close()
-            Thread.sleep(100)
         }
         throw AndroidInstrumentationSetupFailure("Maestro instrumentation could not be initialized")
     }
 
     private fun getDeviceApiLevel(): Int {
-        val response = dadb.openShell("getprop ro.build.version.sdk").readAll()
-        if (response.exitCode != 0) {
-            throw IOException("Failed to get device API level: ${response.errorOutput}")
-        }
-        return response.output.trim().toIntOrNull() ?: throw IOException("Invalid API level: ${response.output}")
+        val response = shell("getprop ro.build.version.sdk")
+        return response.trim().toIntOrNull() ?: throw IOException("Invalid API level: $response")
     }
 
     private fun allocateForwarder() {
@@ -189,7 +193,7 @@ class AndroidDriver(
 
         val arguments = launchArguments.toAndroidLaunchArguments()
         val sessionUUID = sessionId ?: UUID.randomUUID()
-        dadb.shell("setprop debug.maestro.sessionId $sessionUUID")
+        shell("setprop debug.maestro.sessionId $sessionUUID")
         runDeviceCall {
             blockingStubWithTimeout.launchApp(
                 launchAppRequest {
@@ -887,7 +891,11 @@ class AndroidDriver(
 
     private fun install(apkFile: File) {
         try {
-            dadb.install(apkFile)
+            if (useAdbBinary) {
+                executeAdbCommand("install ${apkFile.absolutePath}")
+            } else {
+                dadb.install(apkFile)
+            }
         } catch (installError: IOException) {
             throw IOException("Failed to install apk " + apkFile + ": " + installError.message, installError)
         }
@@ -895,7 +903,11 @@ class AndroidDriver(
 
     private fun uninstall(packageName: String) {
         try {
-            dadb.uninstall(packageName)
+            if(useAdbBinary) {
+                executeAdbCommand("uninstall $packageName")
+            } else {
+                dadb.uninstall(packageName)
+            }
         } catch (error: IOException) {
             throw IOException("Failed to uninstall package " + packageName + ": " + error.message, error)
         }
@@ -903,7 +915,7 @@ class AndroidDriver(
 
     private fun isPackageInstalled(packageName: String): Boolean {
         val output: String = shell("pm list packages --user 0 $packageName")
-        return output.split("\n".toRegex())
+        return output.lines()
             .map { line -> line.split(":".toRegex()) }
             .filter { parts -> parts.size == 2 }
             .map { parts -> parts[1] }
@@ -911,6 +923,14 @@ class AndroidDriver(
     }
 
     private fun shell(command: String): String {
+        if (useAdbBinary) {
+            try {
+                return executeAdbCommand("shell $command").stdout
+            } catch (e: Exception) {
+                throw IOException(command, e)
+            }
+        }
+
         val response: AdbShellResponse = try {
             dadb.shell(command)
         } catch (e: IOException) {
@@ -921,6 +941,52 @@ class AndroidDriver(
             throw IOException("$command: ${response.allOutput}")
         }
         return response.output
+    }
+
+    private fun executeAdbCommand(command: String): AdbCommandResult {
+        val adb = getAdbBinaryOrThrow()
+
+        val process = ProcessBuilder()
+            .command(adb.absolutePathString(), *command.split(' ').toTypedArray())
+            .start()
+        process.waitFor()
+        val stdout = process.inputStream.bufferedReader().readText()
+        val stderr = process.errorStream.bufferedReader().readText()
+        val exitValue = process.exitValue()
+        if (exitValue != 0) {
+            throw Exception("Command '$command' failed with exit code $exitValue.\nStdout:\n$stdout\nStderr:\n$stderr\n")
+        }
+        return AdbCommandResult(
+            exitValue,
+            stdout,
+            stderr
+        )
+    }
+
+    private fun getAdbBinaryOrThrow(): Path {
+        return findAdbBinaryFromPath() ?: findAdbBinaryFromAndroidHomeOrThrow()
+    }
+
+    private fun findAdbBinaryFromPath(): Path? {
+        val path = System.getenv("PATH")
+
+        return path.split(':')
+            .asSequence()
+            .map(::Path)
+            .filter { it.exists() }
+            .map { it / "adb" }.filter { it.exists() }.firstOrNull()
+    }
+
+    private fun findAdbBinaryFromAndroidHomeOrThrow(): Path {
+        val androidHome = Path(
+            System.getenv("ANDROID_HOME")
+                ?: throw Exception("ANDROID_HOME is not set. Please set ANDROID_HOME to your Android SDK path.")
+        )
+        val adbBinary = androidHome / "platform-tools" / "adb"
+        if (adbBinary.notExists()) {
+            throw Exception("Can't find adb binary")
+        }
+        return adbBinary
     }
 
     private fun getStartupTimeout(): Long = runCatching {
@@ -968,3 +1034,5 @@ class AndroidDriver(
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
     }
 }
+
+data class AdbCommandResult(val exitCode: Int, val stdout: String, val stderr: String)
