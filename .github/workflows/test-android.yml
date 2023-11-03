@@ -65,11 +65,24 @@ jobs:
       - name: Extract maestro
         run: tar -xf maestro.tar
 
+      - name: Determine Android Image
+        id: android-image
+        run: |
+          # Android API 27 only has an x86 image available.
+          if [[ "$CURRENT_API_LEVEL" == "27" ]]; then
+            echo "arch=x86" >> "$GITHUB_OUTPUT"
+          else
+            echo "arch=x86_64" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          CURRENT_API_LEVEL: ${{ matrix.android_api_level }}
+
       - name: create AVD and generate snapshot for caching
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           target: google_apis
+          arch: ${{ steps.android-image.outputs.arch }}
           api-level: ${{ matrix.android_api_level }}
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
@@ -80,6 +93,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           target: google_apis
+          arch: ${{ steps.android-image.outputs.arch }}
           api-level: ${{ matrix.android_api_level }}
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
