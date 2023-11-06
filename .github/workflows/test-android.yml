@@ -53,15 +53,6 @@ jobs:
         with:
           name: maestro
 
-      - name: AVD cache
-        uses: actions/cache@v2
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ matrix.android_api_level }}
-
       - name: Extract maestro
         run: tar -xf maestro.tar
 
@@ -76,18 +67,6 @@ jobs:
           fi
         env:
           CURRENT_API_LEVEL: ${{ matrix.android_api_level }}
-
-      - name: create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          target: google_apis
-          arch: ${{ steps.android-image.outputs.arch }}
-          api-level: ${{ matrix.android_api_level }}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          script: echo "Generated AVD snapshot for caching"
 
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
