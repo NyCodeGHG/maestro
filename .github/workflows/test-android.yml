@@ -82,3 +82,10 @@ jobs:
             adb install /tmp/samples/sample.apk
             ./maestro/bin/maestro test samples/android-flow.yaml
             ./maestro/bin/maestro test samples/android-advanced-flow.yaml
+
+      - name: upload failure data
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: maestro-directory
+          path: "~/.maestro"
