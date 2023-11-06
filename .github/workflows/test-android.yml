@@ -87,5 +87,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: maestro-directory-${{matrix.android_api_level }}-${{ github.run_id }}
+          name: maestro-directory-${{matrix.android_api_level }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: "~/.maestro"
