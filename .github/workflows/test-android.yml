@@ -83,8 +83,8 @@ jobs:
             ./maestro/bin/maestro test samples/android-flow.yaml
             ./maestro/bin/maestro test samples/android-advanced-flow.yaml
         env:
-          # 30 seconds timeout
-          MAESTRO_DRIVER_STARTUP_TIMEOUT: 30000
+          # 60 seconds timeout
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 60000
 
       - name: upload failure data
         if: failure()
