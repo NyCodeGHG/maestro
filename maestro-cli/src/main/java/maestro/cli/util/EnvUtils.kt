@@ -73,7 +73,7 @@ sealed interface ArchitectureDetectionStrategy {
 
     fun detectArchitecture(): MACOS_ARCHITECTURE
 
-    object MacOsArchitectureDetection : ArchitectureDetectionStrategy {
+    data object MacOsArchitectureDetection : ArchitectureDetectionStrategy {
         override fun detectArchitecture(): MACOS_ARCHITECTURE {
             fun runSysctl(property: String) = runProcess("sysctl", property).any { it.endsWith(": 1") }
 
@@ -88,7 +88,7 @@ sealed interface ArchitectureDetectionStrategy {
         }
     }
 
-    object LinuxArchitectureDetection : ArchitectureDetectionStrategy {
+    data object LinuxArchitectureDetection : ArchitectureDetectionStrategy {
         override fun detectArchitecture(): MACOS_ARCHITECTURE {
             return when (runProcess("uname", "-m").first()) {
                 "x86_64" -> MACOS_ARCHITECTURE.x86_64

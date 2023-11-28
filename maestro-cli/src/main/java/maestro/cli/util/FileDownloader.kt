@@ -55,7 +55,7 @@ object FileDownloader {
 
     sealed class DownloadResult {
 
-        object Success : DownloadResult()
+        data object Success : DownloadResult()
 
         data class Error(val message: String, val cause: Exception? = null) : DownloadResult()
 

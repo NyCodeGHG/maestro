@@ -29,7 +29,7 @@ enum class KeyCode(
     companion object {
         fun getByName(name: String): KeyCode? {
             val lowercaseName = name.lowercase()
-            return values().find { it.description.lowercase() == lowercaseName }
+            return entries.find { it.description.lowercase() == lowercaseName }
         }
 
         fun mapToSeleniumKey(code: KeyCode): Keys? {

@@ -18,10 +18,14 @@ protobuf {
     generateProtoTasks {
         all().each { task ->
             task.plugins {
-                grpc {}
+                grpc {
+                    option 'lite'
+                }
             }
             task.builtins {
-                kotlin {}
+                kotlin {
+                    option 'lite'
+                }
             }
         }
     }
@@ -54,7 +58,6 @@ dependencies {
     api(libs.graaljs)
     api(libs.grpc.kotlin.stub)
     api(libs.grpc.stub)
-    api(libs.grpc.netty)
     api(libs.grpc.protobuf)
     api(libs.grpc.okhttp)
     api(libs.google.protobuf.kotlin)

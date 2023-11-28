@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         applicationId "dev.mobile.maestro"
-        minSdk 24
+        minSdk 23
         targetSdk 31
         versionCode 1
         versionName "1.0"
@@ -118,6 +118,7 @@ sourceSets {
 dependencies {
     protobuf project(':maestro-proto')
 
+    implementation("org.conscrypt:conscrypt-android:2.5.2")
     implementation(libs.grpc.kotlin.stub)
     implementation(libs.grpc.netty.shaded)
     implementation(libs.grpc.stub)

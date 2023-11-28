@@ -45,15 +45,21 @@ import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.protobuf.ByteString
+import io.grpc.InsecureServerCredentials
+import io.grpc.ServerCredentials
 import io.grpc.Status
+import io.grpc.TlsServerCredentials
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
+import io.grpc.okhttp.OkHttpServerBuilder
 import io.grpc.stub.StreamObserver
 import maestro_android.*
+import org.conscrypt.Conscrypt
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.lang.IllegalStateException
+import java.security.Security
 import java.util.IllegalFormatException
 import kotlin.system.measureTimeMillis
 
@@ -67,6 +73,8 @@ class MaestroDriverService {
 
     @Test
     fun grpcServer() {
+        Security.insertProviderAt(Conscrypt.newProvider(), 1)
+
         Configurator.getInstance()
             .setActionAcknowledgmentTimeout(0L)
             .setWaitForIdleTimeout(0L)
@@ -76,11 +84,13 @@ class MaestroDriverService {
         val uiDevice = UiDevice.getInstance(instrumentation)
         val uiAutomation = instrumentation.uiAutomation
 
-        NettyServerBuilder.forPort(7001)
-            .addService(Service(uiDevice, uiAutomation))
-            .build()
-            .start()
+        NettyServerBuilder.forPort(7001).addService(Service(uiDevice, uiAutomation)).build().start()
+        // OkHttpServerBuilder.forPort(7001, InsecureServerCredentials.create())
+        //     .addService(Service(uiDevice, uiAutomation))
+        //     .build()
+        //     .start()
 
+        Log.d("MAESTRO", "6")
         while (!Thread.interrupted()) {
             Thread.sleep(100)
         }
@@ -101,16 +111,20 @@ class Service(
         request: MaestroAndroid.LaunchAppRequest,
         responseObserver: StreamObserver<MaestroAndroid.LaunchAppResponse>
     ) {
+        Log.d("Maestro", "launchApp")
         try {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
 
+            Log.d("Maestro", request.packageName)
             val intent = context.packageManager.getLaunchIntentForPackage(request.packageName)
 
+            Log.d("Maestro", "1")
             if (intent == null) {
                 Log.e("Maestro", "No launcher intent found for package ${request.packageName}")
                 responseObserver.onError(RuntimeException("No launcher intent found for package ${request.packageName}"))
                 return
             }
+            Log.d("Maestro", "2")
 
             request.argumentsList
                 .forEach {
@@ -123,11 +137,14 @@ class Service(
                         else -> intent.putExtra(it.key, it.value)
                     }
                 }
+            Log.d("Maestro", "3")
             context.startActivity(intent)
 
+            Log.d("Maestro", "4")
             responseObserver.onNext(launchAppResponse { })
             responseObserver.onCompleted()
         } catch (t: Throwable) {
+            Log.d("Maestro", "5")
             responseObserver.onError(t.internalError())
         }
     }
