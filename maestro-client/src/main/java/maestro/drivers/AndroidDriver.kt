@@ -930,7 +930,7 @@ class AndroidDriver(
             throw IOException(command, e)
         }
 
-        if (response.exitCode?.let { it != 0 } == true) {
+        if (response.exitCode != 0) {
             throw IOException("$command: ${response.allOutput}")
         }
         return response.output
