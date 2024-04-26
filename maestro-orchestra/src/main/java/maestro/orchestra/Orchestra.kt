@@ -650,7 +650,7 @@ class Orchestra(
         val file = screenshotsDir
             ?.let { File(it, pathStr) }
             ?: File(pathStr)
-        screenRecording = maestro.startScreenRecording(file.sink().buffer())
+        screenRecording = maestro.startScreenRecording(file.toPath())
         return false
     }
 

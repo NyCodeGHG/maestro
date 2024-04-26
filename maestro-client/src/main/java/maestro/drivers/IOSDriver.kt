@@ -31,10 +31,12 @@ import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.utils.*
 import okio.Sink
+import okio.sink
 import okio.source
 import org.slf4j.LoggerFactory
 import util.XCRunnerCLIUtils
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import kotlin.collections.set
 
@@ -371,8 +373,8 @@ class IOSDriver(
         runDeviceCall { iosDevice.takeScreenshot(out, compressed) }
     }
 
-    override fun startScreenRecording(out: Sink): ScreenRecording {
-        val iosScreenRecording = iosDevice.startScreenRecording(out).expect {}
+    override fun startScreenRecording(path: Path, maestro: Maestro): ScreenRecording {
+        val iosScreenRecording = path.sink().use { iosDevice.startScreenRecording(it).expect {} }
         return object : ScreenRecording {
             override fun close() = iosScreenRecording.close()
         }

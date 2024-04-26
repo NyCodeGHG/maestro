@@ -93,11 +93,9 @@ class RecordCommand : Callable<Int> {
 
             val resultView = AnsiResultView()
             val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
-            val exitCode = screenRecording.sink().use { out ->
-                maestro.startScreenRecording(out).use {
+            val exitCode = maestro.startScreenRecording(screenRecording.toPath()).use {
                     TestRunner.runSingle(maestro, device, flowFile, env, resultView, path)
                 }
-            }
 
             System.err.println()
             System.err.println("@|bold Rendering your video. This usually takes a couple minutes...|@".render())

@@ -26,12 +26,12 @@ import maestro.drivers.WebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
-import okio.Sink
 import okio.buffer
 import okio.sink
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Path
 import java.util.*
 import kotlin.system.measureTimeMillis
 
@@ -510,7 +510,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         }
     }
 
-    fun startScreenRecording(out: Sink): ScreenRecording {
+    fun startScreenRecording(path: Path): ScreenRecording {
         if (screenRecordingInProgress) {
             LOGGER.info("Screen recording not started: Already in progress")
             return object : ScreenRecording {
@@ -522,7 +522,7 @@ class Maestro(private val driver: Driver) : AutoCloseable {
         screenRecordingInProgress = true
 
         LOGGER.info("Starting screen recording")
-        val screenRecording = driver.startScreenRecording(out)
+        val screenRecording = driver.startScreenRecording(path, this)
         val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
             override fun close() {

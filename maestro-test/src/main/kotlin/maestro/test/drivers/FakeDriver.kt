@@ -24,10 +24,10 @@ import com.google.common.truth.Truth.assertThat
 import maestro.*
 import maestro.utils.ScreenshotUtils
 import okio.Sink
-import okio.Source
 import okio.buffer
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import javax.imageio.ImageIO
 
@@ -228,10 +228,10 @@ class FakeDriver : Driver {
         events += Event.TakeScreenshot
     }
 
-    override fun startScreenRecording(out: Sink): ScreenRecording {
+    override fun startScreenRecording(path: Path, maestro: Maestro): ScreenRecording {
         ensureOpen()
 
-        out.buffer().writeUtf8("Screen recording").close()
+        path.buffer().writeUtf8("Screen recording").close()
 
         events += Event.StartRecording
 

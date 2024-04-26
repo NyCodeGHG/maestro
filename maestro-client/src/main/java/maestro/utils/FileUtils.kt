@@ -11,7 +11,6 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
-import kotlin.streams.toList
 
 object FileUtils {
 
@@ -23,7 +22,7 @@ object FileUtils {
      */
     fun zipDir(from: Path, to: Path) {
         val stream = to.toFile().outputStream()
-        val files = Files.walk(from).filter { !it.isDirectory() }.toList()
+        val files = Files.walk(from).filter { !it.isDirectory() }
         ZipOutputStream(stream).use { zs ->
             try {
                 files.forEach {

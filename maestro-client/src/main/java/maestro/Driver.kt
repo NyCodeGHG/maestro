@@ -21,6 +21,7 @@ package maestro
 
 import okio.Sink
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 
 interface Driver {
@@ -73,7 +74,7 @@ interface Driver {
 
     fun takeScreenshot(out: Sink, compressed: Boolean)
 
-    fun startScreenRecording(out: Sink): ScreenRecording
+    fun startScreenRecording(path: Path, maestro: Maestro): ScreenRecording
 
     fun setLocation(latitude: Double, longitude: Double)
 

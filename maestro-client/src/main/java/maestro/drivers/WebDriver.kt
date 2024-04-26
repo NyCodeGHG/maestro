@@ -13,7 +13,6 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.utils.ScreenshotUtils
 import okio.Sink
-import maestro.NamedSource
 import okio.buffer
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
@@ -29,6 +28,7 @@ import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.WebDriverWait
 import java.io.File
+import java.nio.file.Path
 import java.time.Duration
 import java.util.Random
 import java.util.UUID
@@ -318,7 +318,7 @@ class WebDriver(val isStudio: Boolean) : Driver {
         out.buffer().use { it.write(src.readBytes()) }
     }
 
-    override fun startScreenRecording(out: Sink): ScreenRecording {
+    override fun startScreenRecording(path: Path, maestro: Maestro): ScreenRecording {
         TODO("Not yet implemented")
     }
 

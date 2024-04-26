@@ -33,6 +33,10 @@ import maestro.MaestroDriverStartupException.*
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
+import maestro.recording.AdbScreenRecorder
+import maestro.recording.AndroidScreenRecorder
+import maestro.recording.Availability
+import maestro.recording.ScrcpyScreenRecorder
 import maestro.utils.BlockingStreamObserver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
@@ -45,6 +49,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.*
 import javax.xml.parsers.DocumentBuilderFactory
@@ -66,6 +71,8 @@ class AndroidDriver(
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
     private var closed = false
+
+    private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
     override fun name(): String {
         return "Android Device ($dadb)"
@@ -450,29 +457,89 @@ class AndroidDriver(
         }
     }
 
-    override fun startScreenRecording(out: Sink): ScreenRecording {
-        val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
+    override fun startScreenRecording(path: Path, maestro: Maestro): ScreenRecording {
+        val recorder = findBestScreenRecorder()
+        LOGGER.debug("Using recorder implementation: ${recorder.javaClass.name}")
+        val future = recorder.record(path)
 
-        val future = CompletableFuture.runAsync({
-            try {
-                shell("screenrecord --bit-rate '100000' $deviceScreenRecordingPath")
-            } catch (e: IOException) {
-                throw IOException(
-                    "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
-                            "Try using a different Android emulator (eg. Pixel 5 / API 30)",
-                    e,
-                )
-            }
-        }, Executors.newSingleThreadExecutor())
+        // val future = CompletableFuture.runAsync({
+        //     try {
+        //         shell("screenrecord --bit-rate '100000' $deviceScreenRecordingPath")
+        //     } catch (e: IOException) {
+        //         throw IOException(
+        //             "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
+        //                     "Try using a different Android emulator (eg. Pixel 5 / API 30)",
+        //             e,
+        //         )
+        //     }
+        // }, Executors.newSingleThreadExecutor())
 
         return object : ScreenRecording {
             override fun close() {
-                dadb.shell("killall -INT screenrecord") // Ignore exit code
+                recorder.stop()
+                // dadb.shell("killall -INT screenrecord") // Ignore exit code
                 future.get()
-                Thread.sleep(3000)
-                dadb.pull(out, deviceScreenRecordingPath)
+                // Thread.sleep(3000)
+                // dadb.pull(out, deviceScreenRecordingPath)
             }
         }
+    }
+
+    /**
+     * Pull a file from the android device to the local device
+     */
+    fun pullFile(devicePath: String, localPath: Path) {
+        dadb.pull(localPath.toFile(), devicePath)
+    }
+
+    private fun findBestScreenRecorder(): AndroidScreenRecorder {
+        when (val recorderName: String? = System.getenv("MAESTRO_ANDROID_SCREEN_RECORDER")) {
+            "scrcpy" -> {
+                val recorder = ScrcpyScreenRecorder()
+                val availability = recorder.isAvailable()
+                if (availability is Availability.Unavailable) {
+                    throw MaestroException.AndroidScreenRecorderUnavailable(
+                        "scrcpy screen recorder is not available, while being explicitly selected in the MAESTRO_ANDROID_SCREEN_RECORDER environment variable." +
+                                "Reason: ${availability.reason}"
+                    )
+                }
+                return recorder
+            }
+
+            "adb" -> {
+                val recorder = AdbScreenRecorder(this)
+                val availability = recorder.isAvailable()
+                if (availability is Availability.Unavailable) {
+                    throw MaestroException.AndroidScreenRecorderUnavailable(
+                        "adb screen recorder is not available, while being explicitly selected in the MAESTRO_ANDROID_SCREEN_RECORDER environment variable." +
+                                "Reason: ${availability.reason}"
+                    )
+                }
+                return recorder
+            }
+
+            null -> {}
+            else -> {
+                throw MaestroException.AndroidScreenRecorderUnavailable(
+                    "Invalid screen recorder has been selected in the MAESTRO_ANDROID_SCREEN_RECORDER environment variable: $recorderName." +
+                            " Available recorders are: scrcpy, adb"
+                )
+            }
+        }
+
+        val scrcpy = ScrcpyScreenRecorder()
+        when (val availability = scrcpy.isAvailable()) {
+            is Availability.Available -> return scrcpy
+            is Availability.Unavailable -> LOGGER.warn("Scrcpy recording is not available: ${availability.reason}")
+        }
+
+        val adb = AdbScreenRecorder(this)
+        when (val availability = adb.isAvailable()) {
+            is Availability.Available -> return adb
+            is Availability.Unavailable -> LOGGER.warn("ADB recording is not available: ${availability.reason}")
+        }
+
+        error("No screen recorder implementation available.")
     }
 
     override fun inputText(text: String) {
@@ -616,7 +683,11 @@ class AndroidDriver(
         }
     }
 
-    private fun waitForWindowToSettle(appId: String, initialHierarchy: ViewHierarchy?, timeoutMs: Int? = null): ViewHierarchy {
+    private fun waitForWindowToSettle(
+        appId: String,
+        initialHierarchy: ViewHierarchy?,
+        timeoutMs: Int? = null
+    ): ViewHierarchy {
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
         var hierarchy: ViewHierarchy? = null
         do {
@@ -666,7 +737,8 @@ class AndroidDriver(
 
     fun setDeviceLocale(country: String, language: String): Int {
         dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
-        val response = dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
+        val response =
+            dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
         return extractSetLocaleResult(response.output)
     }
 
@@ -967,7 +1039,7 @@ class AndroidDriver(
             .any { linePackageName -> linePackageName == packageName }
     }
 
-    private fun shell(command: String): String {
+    internal fun shell(command: String): String {
         val response: AdbShellResponse = try {
             dadb.shell(command)
         } catch (e: IOException) {
